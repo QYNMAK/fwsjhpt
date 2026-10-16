@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<title>GEO服务商入驻</title>
+<!-- 仅 Excel 库（JS，非样式）：多镜像 + 断网自动降级 CSV -->
+<script src="https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js"></script>
+<style>
+/* ================= 基础（手写 CSS，零外部依赖） ================= */
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+    margin:0; background:#f6f8fb; color:#1f2937; font-size:14px; line-height:1.55;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-tap-highlight-color:transparent;
+}
+button,label,select,input,textarea{ touch-action:manipulation; font-family:inherit; }
+[hidden]{ display:none !important; }
+
+.page{ max-width:1280px; margin:0 auto; padding:10px; }
+
+/* ================= 头部 ================= */
+.app-header{
+    background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,.08);
+    padding:13px 14px; display:flex; align-items:center; justify-content:space-between;
+    gap:8px; margin-bottom:12px;
+}
+.app-header .logo{ font-size:17px; font-weight:700; color:#2563eb; }
+.app-header .nav{ font-size:13px; color:#374151; white-space:nowrap; }
+
+/* ================= 卡片 ================= */
+.card{ background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.08); padding:16px 14px; }
+.form-title{ font-size:18px; font-weight:700; margin:0 0 8px; }
+.form-note{ font-size:12.5px; color:#6b7280; margin-bottom:14px; }
+.req{ color:#ef4444; font-weight:700; }
+
+/* ================= 表单网格：手机单列 ================= */
+.fgrid{ display:grid; grid-template-columns:1fr; gap:14px; }
+.span2{ grid-column:1 / -1; }
+
+/* 区块标题（与截图同款：蓝色左竖条 + 浅蓝渐变） */
+.section-title{
+    display:flex; align-items:center; gap:8px;
+    font-size:14px; font-weight:600; color:#0f172a;
+    border-left:4px solid #2563eb;
+    background:linear-gradient(90deg,#eff6ff,rgba(239,246,255,0));
+    padding:9px 12px; border-radius:0 8px 8px 0;
+}
+
+.field-label{ display:block; margin-bottom:6px; font-size:14px; font-weight:500; color:#374151; }
+.hint{ font-size:11.5px; color:#94a3b8; margin-top:5px; }
+
+/* ================= 输入控件（与截图同款灰底圆角） ================= */
+.form-item{
+    width:100%; border:1px solid #d8dee6; border-radius:10px;
+    padding:12px; min-height:46px; font-size:16px;   /* 16px 防 iOS 聚焦放大 */
+    background:#f8fafc; color:#1f2937;
+    transition:border-color .15s, box-shadow .15s, background .15s;
+    appearance:none; -webkit-appearance:none;
+}
+select.form-item{
+    cursor:pointer; padding-right:34px;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center;
+}
+textarea.form-item{ resize:vertical; min-height:64px; }
+input[type="file"].form-item{ padding:10px; min-height:auto; background:#fff; cursor:pointer; font-size:14px; }
+.form-item:focus{ outline:none; background:#fff; border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+.form-item::placeholder{ color:#9ca3af; }
+.form-item.field-error{ border-color:#ef4444 !important; background:#fef2f2 !important; }
+.err-msg{ color:#ef4444; font-size:12px; margin-top:4px; }
+
+.flash-highlight{ animation:flashRing 1.2s ease; }
+@keyframes flashRing{
+    0%{ box-shadow:0 0 0 6px rgba(245,158,11,.55); }
+    100%{ box-shadow:0 0 0 0 rgba(245,158,11,0); }
+}
+
+/* 微信行 */
+.wx-row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.wx-row .form-item{ flex:1; min-width:140px; }
+.wx-pub{ display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer; font-size:13px; user-select:none; }
+
+/* ================= 多选胶囊（与截图同款） ================= */
+.pill-row{ display:flex; flex-wrap:wrap; gap:8px; }
+.check-pill{
+    display:inline-flex; align-items:center; gap:7px;
+    border:1px solid #d8dee6; border-radius:999px;
+    padding:10px 16px; background:#f8fafc; cursor:pointer;
+    transition:all .15s; user-select:none; font-size:14px; color:#475569;
+}
+.check-pill:has(input:checked){
+    border-color:#2563eb; background:#eff6ff; color:#2563eb;
+    font-weight:500; box-shadow:inset 0 0 0 1px #2563eb;
+}
+.check-pill input{ accent-color:#2563eb; cursor:pointer; width:17px; height:17px; flex-shrink:0; }
+
+/* 协议区 */
+.agree-box{
+    display:flex; align-items:flex-start; gap:9px; cursor:pointer; user-select:none;
+    background:rgba(239,246,255,.6); border:1px solid #dbeafe; border-radius:12px; padding:12px;
+}
+.agree-box span{ font-size:13px; color:#4b5563; }
+.agree-check{ width:20px; height:20px; accent-color:#2563eb; cursor:pointer; flex-shrink:0; margin-top:1px; }
+
+/* ================= 必填提示条 ================= */
+.tip-bar{ font-size:13px; border-radius:12px; padding:10px 12px; line-height:1.7; }
+.tip-warn{ color:#b45309; background:#fffbeb; border:1px solid #fde68a; }
+.tip-ok{ color:#15803d; background:#f0fdf4; border:1px solid #bbf7d0; }
+.tip-chips{ display:inline-flex; flex-wrap:wrap; gap:6px; margin-top:6px; vertical-align:middle; }
+.tip-chip{
+    display:inline-block; padding:6px 12px; border:1px solid #f59e0b; border-radius:999px;
+    background:#fff; color:#b45309; cursor:pointer; transition:all .15s; font-size:13px; user-select:none;
+}
+.tip-chip:active{ background:#f59e0b; color:#fff; }
+
+/* ================= 按钮 ================= */
+.btn-save{
+    width:100%; border:none; border-radius:12px; padding:14px 24px;
+    font-size:15px; font-weight:500; color:#fff; background:#2563eb; cursor:pointer; transition:all .2s;
+}
+.btn-save.is-disabled{ background:#9ca3af; cursor:not-allowed; }
+
+/* ================= 手机底部悬浮栏 ================= */
+.bar-spacer{ height:78px; }
+.mobile-bar{
+    position:fixed; left:0; right:0; bottom:0; z-index:40;
+    display:flex; align-items:center; gap:12px;
+    background:rgba(255,255,255,.96); backdrop-filter:blur(8px);
+    border-top:1px solid #e5e7eb; box-shadow:0 -2px 10px rgba(0,0,0,.06);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+}
+.mobile-bar .tip-text{
+    flex:1; text-align:left; background:none; border:none; padding:0;
+    font-size:12px; line-height:1.45; color:#b45309; cursor:pointer;
+}
+.mobile-bar .tip-text.ok{ color:#15803d; }
+.mobile-bar .btn-save{ width:auto; flex-shrink:0; padding:12px 26px; font-size:14px; border-radius:10px; }
+
+/* ================= 报表弹窗：手机=底部抽屉 ================= */
+.modal-overlay{
+    position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.5);
+    display:flex; align-items:flex-end; justify-content:center;
+}
+.modal-panel{
+    background:#fff; width:100%; max-height:88vh; overflow:auto;
+    border-radius:18px 18px 0 0; padding:14px 16px 22px;
+}
+.drag-handle{ width:42px; height:4px; border-radius:99px; background:#e5e7eb; margin:0 auto 12px; }
+.modal-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; }
+.modal-title{ font-size:16px; font-weight:700; margin:0; }
+.btn-export{ background:#10b981; color:#fff; border:none; border-radius:10px; padding:10px 14px; font-size:13px; cursor:pointer; }
+.btn-close{ width:38px; height:38px; background:none; border:none; font-size:26px; line-height:1; color:#374151; cursor:pointer; }
+
+#reportContent table{ width:100%; border-collapse:collapse; table-layout:fixed; }
+#reportContent td{ border:1px solid #e5e7eb; padding:8px; font-size:12px; word-break:break-all; vertical-align:top; }
+#reportContent td.lbl{ background:#f3f4f6; font-weight:500; width:92px; }
+
+/* 超小屏再收紧 */
+@media (max-width: 360px){
+    .page{ padding:8px; }
+    .card{ padding:14px 10px; }
+    .check-pill{ padding:9px 12px; font-size:13px; }
+}
+
+/* ============================================================
+   电脑端（≥768px）：与截图一致的双列布局
+   ============================================================ */
+@media (min-width: 768px){
+    .page{ padding:16px; }
+    .app-header{ padding:16px; border-radius:10px; margin-bottom:24px; }
+    .app-header .logo{ font-size:20px; }
+    .app-header .nav{ font-size:14px; }
+    .card{ padding:24px; border-radius:10px; }
+    .form-title{ font-size:20px; margin-bottom:16px; }
+    .form-note{ font-size:14px; margin-bottom:20px; }
+    .fgrid{ grid-template-columns:1fr 1fr; column-gap:20px; row-gap:16px; }
+    .section-title{ font-size:15px; padding:8px 12px; border-radius:0 6px 6px 0; }
+    .field-label{ font-size:13px; }
+    .hint{ font-size:12px; }
+    .form-item{ font-size:14px; padding:9px 12px; min-height:auto; border-radius:8px; }
+    input[type="file"].form-item{ padding:7px 10px; }
+    .check-pill{ padding:6px 14px; font-size:13px; }
+    .check-pill input{ width:15px; height:15px; }
+    .agree-check{ width:16px; height:16px; }
+    .agree-box{ border-radius:8px; }
+    .tip-bar{ border-radius:8px; padding:8px 12px; }
+    .tip-chip{ padding:2px 10px; font-size:12px; }
+    .tip-chip:hover{ background:#f59e0b; color:#fff; }
+    .btn-save{ width:auto; padding:9px 24px; font-size:14px; border-radius:6px; }
+    .bar-spacer, .mobile-bar, .drag-handle{ display:none; }
+    .modal-overlay{ align-items:center; padding:16px; }
+    .modal-panel{ width:auto; max-width:1024px; max-height:85vh; border-radius:10px; padding:20px; }
+    .modal-title{ font-size:18px; }
+    .btn-export{ padding:6px 12px; border-radius:4px; }
+    .btn-close{ width:32px; height:32px; }
+    #reportContent table{ table-layout:auto; }
+    #reportContent td{ padding:8px 12px; font-size:14px; }
+    #reportContent td.lbl{ width:208px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+    <header class="app-header">
+        <div class="logo">GEO服务商聚合平台</div>
+        <div class="nav">✎ 服务商入驻</div>
+    </header>
+
+    <section>
+        <div class="card">
+            <h2 class="form-title">GEO服务商入驻申请表</h2>
+            <div class="form-note">提示：带<span class="req">*</span>为必填项，全部必填项完成后才可点击保存。</div>
+
+            <form id="submitForm" class="fgrid">
+
+                <div class="span2 section-title">一、基础信息（前台展示）</div>
+                <div>
+                    <label class="field-label">入驻主体类型 <span class="req">*</span></label>
+                    <select name="mainType" class="form-item required">
+                        <option value="">请选择</option>
+                        <option value="企业公司">企业公司</option>
+                        <option value="个人代理商">个人代理商</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">服务商/品牌名称 <span class="req">*</span></label>
+                    <input type="text" name="brandName" class="form-item required" placeholder="请填写名称">
+                </div>
+                <div>
+                    <label class="field-label">联系人姓名 <span class="req">*</span></label>
+                    <input type="text" name="contactName" class="form-item required" placeholder="请填写姓名">
+                </div>
+                <div>
+                    <label class="field-label">联系电话（前台展示）<span class="req">*</span></label>
+                    <input type="text" name="contactPhone" class="form-item required" placeholder="手机号或座机号">
+                </div>
+                <div>
+                    <label class="field-label">微信号（可选择是否对外展示）</label>
+                    <div class="wx-row">
+                        <input type="text" name="wx" class="form-item" placeholder="选填">
+                        <label class="wx-pub"><input type="checkbox" name="wxPublic" class="agree-check" style="width:17px;height:17px;">对外公开</label>
+                    </div>
+                </div>
+                <div>
+                    <label class="field-label">所在城市 <span class="req">*</span></label>
+                    <select name="city" class="form-item required">
+                        <option value="">请选择</option>
+                        <option value="江苏省-苏州市-昆山市">江苏省-苏州市-昆山市</option>
+                        <option value="上海市-浦东新区">上海市-浦东新区</option>
+                    </select>
+                </div>
+                <div class="span2">
+                    <label class="field-label">详细地址（路+门牌号，用于地图定位）<span class="req">*</span></label>
+                    <input type="text" name="address" class="form-item required" placeholder="例如：昆山市前进东路888号">
+                    <div class="hint">系统会自动解析地图坐标，用于客户距离筛选排序</div>
+                </div>
+                <div>
+                    <label class="field-label">成立/从业起始年份</label>
+                    <input type="text" name="startYear" class="form-item" placeholder="2022">
+                </div>
+                <div>
+                    <label class="field-label">团队规模</label>
+                    <select name="teamSize" class="form-item">
+                        <option value="">请选择</option>
+                        <option value="1人（个人）">1人（个人）</option>
+                        <option value="2-5人">2-5人</option>
+                        <option value="6-20人">6-20人</option>
+                        <option value="20人以上">20人以上</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">服务覆盖范围</label>
+                    <select name="coverRange" class="form-item">
+                        <option value="">请选择</option>
+                        <option value="仅本市">仅本市</option>
+                        <option value="本省">本省</option>
+                        <option value="全国">全国</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">技术模式 <span class="req">*</span></label>
+                    <select name="techMode" class="form-item required">
+                        <option value="">请选择</option>
+                        <option value="自有源头开发">自有源头开发</option>
+                        <option value="代理合作（中间商）">代理合作（中间商）</option>
+                    </select>
+                </div>
+
+                <div class="span2 section-title">二、核心GEO业务能力（客户对比核心）</div>
+                <div class="span2">
+                    <label class="field-label">可提供GEO服务类型（多选）</label>
+                    <div class="pill-row">
+                        <label class="check-pill"><input type="checkbox" name="serviceType" value="通用大模型收录">通用大模型收录</label>
+                        <label class="check-pill"><input type="checkbox" name="serviceType" value="企业知识库GEO优化">企业知识库GEO优化</label>
+                        <label class="check-pill"><input type="checkbox" name="serviceType" value="官网GEO优化">官网GEO优化</label>
+                        <label class="check-pill"><input type="checkbox" name="serviceType" value="AI问答卡片优化">AI问答卡片优化</label>
+                        <label class="check-pill"><input type="checkbox" name="serviceType" value="传统SEO配套">传统SEO配套</label>
+                        <label class="check-pill"><input type="checkbox" name="serviceType" value="AI教学培训">AI教学培训</label>
+                    </div>
+                </div>
+                <div class="span2">
+                    <label class="field-label">擅长行业（多选）</label>
+                    <input type="text" name="goodIndustry" class="form-item" placeholder="制造、财税、装修、法律服务等">
+                </div>
+                <div>
+                    <label class="field-label">最多优化站点数量上限</label>
+                    <input type="text" name="maxSite" class="form-item" placeholder="如：50">
+                </div>
+                <div>
+                    <label class="field-label">预估见效周期 <span class="req">*</span></label>
+                    <select name="effectCycle" class="form-item required">
+                        <option value="">请选择</option>
+                        <option value="7-15天">7-15天</option>
+                        <option value="1个月左右">1个月左右</option>
+                        <option value="1-3个月">1-3个月</option>
+                        <option value="3个月以上">3个月以上</option>
+                    </select>
+                </div>
+                <div class="span2">
+                    <label class="field-label">不承接行业/限制说明</label>
+                    <textarea name="limitDesc" class="form-item" rows="2" placeholder="选填"></textarea>
+                </div>
+
+                <div class="span2 section-title">三、案例与成果</div>
+                <div>
+                    <label class="field-label">累计服务客户总数</label>
+                    <input type="text" name="customerTotal" class="form-item" placeholder="如：30">
+                </div>
+                <div>
+                    <label class="field-label">是否可提供收录截图证明</label>
+                    <select name="hasScreenshot" class="form-item">
+                        <option value="">请选择</option>
+                        <option value="可以提供">可以提供</option>
+                        <option value="无法提供">无法提供</option>
+                    </select>
+                </div>
+                <div class="span2">
+                    <label class="field-label">代表案例简介（审核后前台展示）</label>
+                    <textarea name="caseIntro" class="form-item" rows="3" placeholder="客户行业、做了哪些服务、效果简述"></textarea>
+                </div>
+
+                <div class="span2 section-title">四、报价套餐信息（前台展示比价）</div>
+                <div>
+                    <label class="field-label">基础套餐起步价(元) <span class="req">*</span></label>
+                    <input type="text" name="startPrice" class="form-item required" placeholder="如：3000">
+                </div>
+                <div>
+                    <label class="field-label">套餐模式（多选）</label>
+                    <div class="pill-row">
+                        <label class="check-pill"><input type="checkbox" name="packageMode" value="单次优化">单次优化</label>
+                        <label class="check-pill"><input type="checkbox" name="packageMode" value="月度维护">月度维护</label>
+                        <label class="check-pill"><input type="checkbox" name="packageMode" value="年度包">年度包</label>
+                        <label class="check-pill"><input type="checkbox" name="packageMode" value="定制项目">定制项目</label>
+                    </div>
+                </div>
+                <div class="span2">
+                    <label class="field-label">套餐包含内容说明</label>
+                    <textarea name="packageDesc" class="form-item" rows="2" placeholder="选填"></textarea>
+                </div>
+                <div>
+                    <label class="field-label">是否支持阶段付款</label>
+                    <select name="supportStagePay" class="form-item">
+                        <option value="">请选择</option>
+                        <option value="支持">支持</option>
+                        <option value="不支持">不支持</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">是否签订正式服务合同</label>
+                    <select name="hasContract" class="form-item">
+                        <option value="">请选择</option>
+                        <option value="是">是</option>
+                        <option value="否（个人服务协议）">否（个人服务协议）</option>
+                    </select>
+                </div>
+
+                <div class="span2 section-title">五、交付与售后保障</div>
+                <div class="span2">
+                    <label class="field-label">交付物清单</label>
+                    <textarea name="deliverList" class="form-item" rows="2" placeholder="选填"></textarea>
+                </div>
+                <div>
+                    <label class="field-label">是否提供数据监测报表</label>
+                    <select name="monitorReport" class="form-item">
+                        <option value="">请选择</option>
+                        <option value="每周报表">每周报表</option>
+                        <option value="每月报表">每月报表</option>
+                        <option value="不提供">不提供</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label">效果承诺类型</label>
+                    <select name="effectPromise" class="form-item">
+                        <option value="">请选择</option>
+                        <option value="只做优化动作，不保证收录">只做优化动作，不保证收录</option>
+                        <option value="承诺一定收录条目数量">承诺一定收录条目数量</option>
+                        <option value="承诺AI问答曝光">承诺AI问答曝光</option>
+                        <option value="不做任何效果承诺">不做任何效果承诺</option>
+                    </select>
+                </div>
+                <div class="span2">
+                    <label class="field-label">未达标处理方案</label>
+                    <textarea name="failPlan" class="form-item" rows="2" placeholder="退款 / 免费延长服务周期 / 追加优化"></textarea>
+                </div>
+
+                <div class="span2 section-title">六、平台展示设置</div>
+                <div class="span2">
+                    <label class="field-label">服务商简介</label>
+                    <textarea name="intro" class="form-item" rows="3" placeholder="选填"></textarea>
+                </div>
+                <div class="span2">
+                    <label class="field-label">服务亮点（3-5条，列表页标签）</label>
+                    <input type="text" name="serviceHighlight" class="form-item" placeholder="例如：同行业案例多、可分期、见效较快">
+                </div>
+                <div>
+                    <label class="field-label">是否接收平台甲方线索</label>
+                    <select name="receiveClue" class="form-item">
+                        <option value="">请选择</option>
+                        <option value="开启">开启</option>
+                        <option value="关闭">关闭</option>
+                    </select>
+                </div>
+
+                <div class="span2 section-title">七、资质材料（仅后台存档，前台不展示）</div>
+                <div class="span2">
+                    <label class="field-label">资质上传：营业执照/身份证</label>
+                    <input type="file" name="certFile" class="form-item">
+                </div>
+                <div class="span2">
+                    <label class="field-label">收款账户信息</label>
+                    <input type="text" name="accountInfo" class="form-item" placeholder="选填">
+                </div>
+
+                <label class="span2 agree-box">
+                    <input type="checkbox" id="agreeCheck" class="agree-check">
+                    <span>我已阅读并同意《平台服务商入驻协议》，承诺不夸大GEO效果、不虚假宣传。</span>
+                </label>
+
+                <div id="requiredTip" class="span2 tip-bar tip-warn" hidden></div>
+
+                <div class="span2">
+                    <button type="button" id="saveBtn" class="btn-save is-disabled" disabled>保存并生成报表</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <div class="bar-spacer"></div>
+</div>
+
+<!-- 手机底部悬浮操作栏（电脑自动隐藏） -->
+<div class="mobile-bar">
+    <button type="button" id="mobileTipBtn" class="tip-text">⚠ 还有 <b>10</b> 项必填未完成，点我定位</button>
+    <button type="button" id="mobileSaveBtn" class="btn-save is-disabled" disabled>保存</button>
+</div>
+
+<!-- 报表弹窗：手机底部抽屉 / 电脑居中 -->
+<div id="reportModal" class="modal-overlay" hidden>
+    <div class="modal-panel">
+        <div class="drag-handle"></div>
+        <div class="modal-head">
+            <h3 class="modal-title">入驻信息报表预览</h3>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button id="exportExcelBtn" class="btn-export">⤓ 下载Excel</button>
+                <button id="closeReportModal" class="btn-close">&times;</button>
+            </div>
+        </div>
+        <div id="reportContent"></div>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('submitForm');
+    const saveBtn = document.getElementById('saveBtn');
+    const agreeCheck = document.getElementById('agreeCheck');
+    const reportModal = document.getElementById('reportModal');
+    const reportContent = document.getElementById('reportContent');
+    const closeReportModal = document.getElementById('closeReportModal');
+    const exportExcelBtn = document.getElementById('exportExcelBtn');
+    const requiredTip = document.getElementById('requiredTip');
+    const mobileSaveBtn = document.getElementById('mobileSaveBtn');
+    const mobileTipBtn = document.getElementById('mobileTipBtn');
+
+    const labelMap = {
+        mainType:"入驻主体类型", brandName:"服务商/品牌名称", contactName:"联系人姓名",
+        contactPhone:"联系电话", wx:"微信号", wxPublic:"微信号是否对外公开",
+        city:"所在城市", address:"详细地址", startYear:"成立/从业起始年份",
+        teamSize:"团队规模", coverRange:"服务覆盖范围", techMode:"技术模式",
+        serviceType:"可提供GEO服务类型", goodIndustry:"擅长行业", maxSite:"最多优化站点数量上限",
+        effectCycle:"预估见效周期", limitDesc:"不承接行业/限制说明", customerTotal:"累计服务客户总数",
+        hasScreenshot:"是否可提供收录截图证明", caseIntro:"代表案例简介", startPrice:"基础套餐起步价(元)",
+        packageMode:"套餐模式", packageDesc:"套餐包含内容说明", supportStagePay:"是否支持阶段付款",
+        hasContract:"是否签订正式服务合同", deliverList:"交付物清单", monitorReport:"是否提供数据监测报表",
+        effectPromise:"效果承诺类型", failPlan:"未达标处理方案", intro:"服务商简介",
+        serviceHighlight:"服务亮点", receiveClue:"是否接收平台甲方线索", accountInfo:"收款账户信息"
+    };
+
+    /* ===== 必填校验与提示 ===== */
+    const requiredLabels = {
+        mainType:'入驻主体类型', brandName:'服务商/品牌名称', contactName:'联系人姓名',
+        contactPhone:'联系电话', city:'所在城市', address:'详细地址',
+        techMode:'技术模式', effectCycle:'预估见效周期', startPrice:'基础套餐起步价(元)'
+    };
+    const touched = new Set();
+
+    function getMissing(){
+        const missing = [];
+        for(const name in requiredLabels){
+            const el = form.elements[name];
+            if(el && !el.value.trim()) missing.push({name, label:requiredLabels[name], el});
+        }
+        if(!agreeCheck.checked) missing.push({name:'agree', label:'勾选入驻协议', el:agreeCheck});
+        return missing;
+    }
+
+    function renderTip(missing){
+        requiredTip.hidden = false;
+        if(missing.length === 0){
+            requiredTip.className = 'span2 tip-bar tip-ok';
+            requiredTip.innerHTML = '✓ 必填项已全部完成，可以保存。';
+            return;
+        }
+        requiredTip.className = 'span2 tip-bar tip-warn';
+        const chips = missing.map(m => `<span class="tip-chip" data-name="${m.name}">${m.label}</span>`).join('');
+        requiredTip.innerHTML = `⚠ 还有 <b>${missing.length}</b> 项必填未完成，点击可定位填写：<span class="tip-chips">${chips}</span>`;
+    }
+
+    function updateMobileBar(missing){
+        if(missing.length === 0){
+            mobileTipBtn.className = 'tip-text ok';
+            mobileTipBtn.innerHTML = '✓ 必填项已全部完成，可以保存';
+            mobileSaveBtn.disabled = false;
+            mobileSaveBtn.classList.remove('is-disabled');
+        }else{
+            mobileTipBtn.className = 'tip-text';
+            mobileTipBtn.innerHTML = `⚠ 还有 <b>${missing.length}</b> 项必填未完成，点我定位`;
+            mobileSaveBtn.disabled = true;
+            mobileSaveBtn.classList.add('is-disabled');
+        }
+    }
+
+    function setErrMsg(el, msg){
+        const host = el.closest('div');
+        if(!host) return;
+        let errEl = host.querySelector(':scope > .err-msg');
+        if(msg){
+            if(!errEl){ errEl = document.createElement('div'); errEl.className = 'err-msg'; host.appendChild(errEl); }
+            errEl.textContent = msg;
+        }else if(errEl){ errEl.remove(); }
+    }
+
+    function updateInlineErrors(missing){
+        for(const name in requiredLabels){
+            const el = form.elements[name];
+            if(!el) continue;
+            const show = missing.some(m => m.name === name) && touched.has(name);
+            el.classList.toggle('field-error', show);
+            setErrMsg(el, show ? '此项为必填，请填写后再保存' : '');
+        }
+        const agreeMissing = missing.some(m => m.name === 'agree');
+        setErrMsg(agreeCheck, (agreeMissing && touched.has('agree')) ? '请先勾选同意协议' : '');
+    }
+
+    function jumpTo(name){
+        const el = (name === 'agree') ? agreeCheck : form.elements[name];
+        if(!el) return;
+        touched.add(name);
+        el.scrollIntoView({behavior:'smooth', block:'center'});
+        setTimeout(()=>{
+            if(el.focus) el.focus({preventScroll:true});
+            el.classList.add('flash-highlight');
+            setTimeout(()=> el.classList.remove('flash-highlight'), 1200);
+            checkRequired();
+        }, 300);
+    }
+
+    requiredTip.addEventListener('click', e=>{
+        const chip = e.target.closest('.tip-chip');
+        if(chip) jumpTo(chip.dataset.name);
+    });
+    mobileTipBtn.addEventListener('click', ()=>{
+        const missing = getMissing();
+        if(missing.length) jumpTo(missing[0].name);
+    });
+    form.addEventListener('focusout', e=>{
+        if(e.target.name) touched.add(e.target.name);
+        if(e.target === agreeCheck) touched.add('agree');
+        checkRequired();
+    });
+
+    function checkRequired(){
+        const missing = getMissing();
+        const ok = missing.length === 0;
+        saveBtn.disabled = !ok;
+        saveBtn.classList.toggle('is-disabled', !ok);
+        renderTip(missing);
+        updateInlineErrors(missing);
+        updateMobileBar(missing);
+    }
+    form.addEventListener('input', checkRequired);
+    form.addEventListener('change', checkRequired);
+    agreeCheck.addEventListener('change', checkRequired);
+
+    /* ===== 数据收集 & 报表 ===== */
+    function getAllFormData(){
+        const fd = new FormData(form);
+        const result = {};
+        for(let [k,v] of fd.entries()){
+            if(v instanceof File) v = v.name ? v.name : '未上传';
+            if(result[k]){
+                if(Array.isArray(result[k])) result[k].push(v);
+                else result[k] = [result[k], v];
+            }else result[k] = v;
+        }
+        Object.keys(result).forEach(k=>{ if(Array.isArray(result[k])) result[k] = result[k].join('；'); });
+        result.wxPublic = form.wxPublic.checked ? '是' : '否';
+        if(!result.certFile) result.certFile = '未上传';
+        return result;
+    }
+
+    function renderReport(data){
+        let html = '<table>';
+        for(let key in labelMap){
+            html += `<tr><td class="lbl">${labelMap[key]}</td><td>${data[key] || '—'}</td></tr>`;
+        }
+        html += '</table>';
+        reportContent.innerHTML = html;
+    }
+
+    /* ===== Excel 导出：多镜像 + 断网 CSV 兜底 ===== */
+    function loadScript(src){
+        return new Promise((res,rej)=>{
+            const s = document.createElement('script');
+            s.src = src; s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+        });
+    }
+    async function ensureXLSX(){
+        if(window.XLSX) return true;
+        const mirrors = [
+            'https://registry.npmmirror.com/xlsx/0.18.5/files/dist/xlsx.full.min.js',
+            'https://cdn.bootcdn.net/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+        ];
+        for(const m of mirrors){
+            try{ await loadScript(m); if(window.XLSX) return true; }catch(e){}
+        }
+        return false;
+    }
+    function exportCsvFallback(data){
+        const rows = Object.keys(labelMap).map(k => [labelMap[k], data[k] || '—']);
+        const csv = '\uFEFF' + rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\r\n');
+        const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = '服务商入驻信息报表.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    }
+    async function exportExcel(data){
+        try{
+            if(await ensureXLSX()){
+                const sheetData = [];
+                for(let k in labelMap) sheetData.push({"项目":labelMap[k],"内容":data[k]||"—"});
+                const ws = XLSX.utils.json_to_sheet(sheetData);
+                ws['!cols'] = [{wch:24},{wch:60}];
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "入驻信息");
+                XLSX.writeFile(wb, "服务商入驻信息报表.xlsx");
+            }else{
+                exportCsvFallback(data);
+                alert('Excel组件加载失败，已自动导出CSV格式（可直接用Excel打开）');
+            }
+        }catch(e){
+            try{ exportCsvFallback(data); alert('已自动导出CSV格式（可直接用Excel打开）'); }
+            catch(e2){ alert('导出失败：' + e2.message); }
+        }
+    }
+
+    function openReport(){
+        renderReport(getAllFormData());
+        reportModal.hidden = false;
+    }
+    saveBtn.onclick = openReport;
+    mobileSaveBtn.onclick = openReport;
+    closeReportModal.onclick = ()=>{ reportModal.hidden = true; };
+    exportExcelBtn.onclick = ()=> exportExcel(getAllFormData());
+
+    checkRequired();
+</script>
+</body>
+</html>
